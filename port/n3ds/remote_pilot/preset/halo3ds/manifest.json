@@ -12,7 +12,7 @@
     "height": 480,
     "touch": {"x": 40, "y": 240, "width": 320, "height": 240, "deviceWidth": 320, "deviceHeight": 240}
   },
-  "buttons": ["A", "B", "X", "Y", "UP", "DOWN", "LEFT", "RIGHT", "L", "R", "ZL", "ZR"],
+  "buttons": ["A", "B", "X", "Y", "UP", "DOWN", "LEFT", "RIGHT", "L", "R", "ZL", "ZR", "START", "SELECT"],
   "setup": {"deviceConfigPath": "halo-source/remote-pilot-upstream-dev.cfg"},
   "theme": {
     "background": "#050c19", "surface": "#102347", "surface2": "#09162f",

@@ -92,6 +92,10 @@ class PresetTests(unittest.TestCase):
             adapter._last_seen = time.monotonic()
             self.assertEqual(adapter.request("input", '{"button":"Y","frames":2}'), "queued")
             self.assertIn(("input", KEYS["Y"], 2), fake.calls)
+            self.assertEqual(adapter.request("input", '{"button":"START","frames":1}'), "queued")
+            self.assertIn(("input", KEYS["START"], 1), fake.calls)
+            self.assertEqual(adapter.request("input", '{"button":"SELECT","frames":1}'), "queued")
+            self.assertIn(("input", KEYS["SELECT"], 1), fake.calls)
             sample = {"buttons": 1, "lx": 0.5, "ly": -0.25, "rx": 0, "ry": 0,
                       "lt": 0, "rt": 1, "frames": 4}
             adapter.request("gamepad", json.dumps(sample))

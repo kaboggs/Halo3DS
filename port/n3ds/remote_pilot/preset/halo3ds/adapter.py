@@ -16,7 +16,8 @@ from reference_adapter import ReferenceAdapter, TransportError
 from .halo_protocol import HaloAdapter, HaloAdapterError
 
 
-KEYS = {"A": 1 << 0, "B": 1 << 1, "RIGHT": 1 << 4, "LEFT": 1 << 5,
+KEYS = {"A": 1 << 0, "B": 1 << 1, "SELECT": 1 << 2, "START": 1 << 3,
+        "RIGHT": 1 << 4, "LEFT": 1 << 5,
         "UP": 1 << 6, "DOWN": 1 << 7, "R": 1 << 8, "L": 1 << 9,
         "X": 1 << 10, "Y": 1 << 11, "ZL": 1 << 14, "ZR": 1 << 15}
 

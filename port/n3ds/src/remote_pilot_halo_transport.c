@@ -286,6 +286,7 @@ static size_t rp_input(const char *payload, char *out, size_t capacity)
     if (sscanf(payload, "keys=%x,frames=%u%n", &held, &frames, &consumed) != 2 ||
         !consumed || payload[consumed] || !frames || frames > 120) return 0;
     const unsigned allowed = NATIVE_KEY_A | NATIVE_KEY_B | NATIVE_KEY_X | NATIVE_KEY_Y |
+        NATIVE_KEY_START | NATIVE_KEY_SELECT |
         NATIVE_KEY_L | NATIVE_KEY_R | NATIVE_KEY_ZL | NATIVE_KEY_ZR |
         NATIVE_KEY_DUP | NATIVE_KEY_DDOWN | NATIVE_KEY_DLEFT | NATIVE_KEY_DRIGHT;
     if (held & ~allowed) return 0;
