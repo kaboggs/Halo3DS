@@ -161,10 +161,16 @@ def split_rpim_audio(body: bytes) -> tuple[bytes, bytes]:
     if len(body) < 16 or body[:4] != b"RPIM":
         raise HaloProtocolError("invalid RPIM header")
     top_w, top_h, bottom_w, bottom_h, pixel_format, _ = struct.unpack_from("<6H", body, 4)
-    if pixel_format not in (1, 2):
+    if pixel_format not in (1, 2, 3):
         raise HaloProtocolError("unsupported RPIM pixel format")
-    pixel_bytes = 2 if pixel_format == 2 else 3
-    image_bytes = 16 + (top_w * top_h + bottom_w * bottom_h) * pixel_bytes
+    if pixel_format == 3:
+        if len(body) < 20:
+            raise HaloProtocolError("short RPIM RLE header")
+        packed_bytes = struct.unpack_from("<I", body, 16)[0]
+        image_bytes = 20 + packed_bytes
+    else:
+        pixel_bytes = 2 if pixel_format == 2 else 3
+        image_bytes = 16 + (top_w * top_h + bottom_w * bottom_h) * pixel_bytes
     if image_bytes > 180000 or len(body) < image_bytes:
         raise HaloProtocolError("incorrect RPIM pixel length")
     if len(body) == image_bytes:
@@ -178,9 +184,37 @@ def split_rpim_audio(body: bytes) -> tuple[bytes, bytes]:
     return body[:image_bytes], trailer[8:]
 
 
+# Kevin Boggs: _unpack_rgb565_rle - New3DS integration.
+def _unpack_rgb565_rle(data: bytes, pixels: int) -> bytes:
+    """Expand bounded RGB565 runs; reject malformed lengths and trailing bytes."""
+    output = bytearray(pixels * 2)
+    source = target = 0
+    while source < len(data) and target < len(output):
+        token = data[source]
+        source += 1
+        count = (token & 127) + 1
+        size = count * 2
+        if target + size > len(output):
+            raise HaloProtocolError("RPIM RLE pixel overflow")
+        if token & 128:
+            if source + 2 > len(data):
+                raise HaloProtocolError("truncated RPIM RLE run")
+            output[target:target + size] = data[source:source + 2] * count
+            source += 2
+        else:
+            if source + size > len(data):
+                raise HaloProtocolError("truncated RPIM RLE literal")
+            output[target:target + size] = data[source:source + size]
+            source += size
+        target += size
+    if target != len(output) or source != len(data):
+        raise HaloProtocolError("incorrect RPIM RLE length")
+    return bytes(output)
+
+
 # Kevin Boggs: decode_rpim - New3DS integration.
 def decode_rpim(body: bytes, *, stream: bool = False) -> bytes:
-    """Validate RPIM RGB888/RGB565 and return a stacked 24-bit BMP.
+    """Validate RPIM RGB888/RGB565/RLE and return a stacked 24-bit BMP.
 
     Portrait buffers are rotated 90 degrees counterclockwise. The smaller
     lower image is centered under the upper image, with black side margins.
@@ -193,9 +227,16 @@ def decode_rpim(body: bytes, *, stream: bool = False) -> bytes:
     dimensions = struct.unpack_from("<6H", body, 4)
     pixel_format, orientation = dimensions[4:]
     if dimensions[:4] != expected or orientation != 1 or \
-            pixel_format not in ((1, 2) if stream else (1,)):
+            pixel_format not in ((1, 2, 3) if stream else (1,)):
         raise HaloProtocolError("unsupported RPIM dimensions, format, or orientation")
     top_w, top_h, bottom_w, bottom_h = expected
+    if pixel_format == 3:
+        packed_bytes = struct.unpack_from("<I", body, 16)[0]
+        if len(body) != 20 + packed_bytes:
+            raise HaloProtocolError("incorrect RPIM RLE packet length")
+        raw = _unpack_rgb565_rle(body[20:], top_w * top_h + bottom_w * bottom_h)
+        body = body[:12] + struct.pack("<H", 2) + body[14:16] + raw
+        pixel_format = 2
     pixel_bytes = 2 if pixel_format == 2 else 3
     top_bytes = top_w * top_h * pixel_bytes
     bottom_bytes = bottom_w * bottom_h * pixel_bytes

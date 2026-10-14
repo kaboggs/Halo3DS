@@ -19,11 +19,12 @@ def main():
     for index, char in enumerate(GLYPHS):
         if char == " ":
             continue
-        bounds = draw.textbbox((0, 0), char, font=font)
+        bounds = draw.textbbox((0, 0), char, font=font, stroke_width=1)
         width, height = bounds[2] - bounds[0], bounds[3] - bounds[1]
         x = (index % 8) * CELL + (CELL - width) // 2 - bounds[0]
         y = (index // 8) * CELL + (CELL - height) // 2 - bounds[1]
-        draw.text((x, y), char, font=font, fill=255)
+        draw.text((x, y), char, font=font, fill=255, stroke_width=1,
+                  stroke_fill=255)
     pixels = atlas.tobytes()
     packed = bytes(((pixels[i] + 8) // 17 << 4) | ((pixels[i + 1] + 8) // 17)
                    for i in range(0, len(pixels), 2))

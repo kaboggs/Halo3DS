@@ -47,6 +47,18 @@ def rpim565(audio=b""):
     return image + (b"RPAU" + struct.pack("<HH", len(audio) // 2, 16364) + audio if audio else b"")
 
 
+# Kevin Boggs: rpim565_rle - New3DS integration.
+def rpim565_rle(audio=b""):
+    def runs(count, color):
+        full, tail = divmod(count, 128)
+        return (b"\xff" + color) * full + (bytes((0x80 | (tail - 1),)) + color if tail else b"")
+
+    packed = (b"\x00\x00\xf8" + runs(120 * 200 - 1, b"\x00\x00") +
+              b"\x00\x1f\x00" + runs(120 * 160 - 1, b"\x00\x00"))
+    image = (b"RPIM" + struct.pack("<6HI", 120, 200, 120, 160, 3, 1, len(packed)) + packed)
+    return image + (b"RPAU" + struct.pack("<HH", len(audio) // 2, 16364) + audio if audio else b"")
+
+
 # Kevin Boggs: bmp_pixel - New3DS integration.
 def bmp_pixel(image, x, y):
     width, height = struct.unpack_from("<ii", image, 18)
@@ -241,6 +253,23 @@ class HaloAdapterTest(unittest.TestCase):
         invalid[len(rpim565()):len(rpim565()) + 4] = b"BAD!"
         with self.assertRaises(HaloProtocolError):
             decode_rpim(bytes(invalid), stream=True)
+
+    # Kevin Boggs: test_rgb565_rle_live_preview - New3DS integration.
+    def test_rgb565_rle_live_preview(self):
+        self.assertEqual(decode_rpim(rpim565_rle(), stream=True),
+                         decode_rpim(rpim565(), stream=True))
+        pcm = struct.pack("<4h", 0, 1234, -1234, 32767)
+        port, thread, errors, _ = self.serve("stream", rpim565_rle(pcm), request_kind="stream")
+        image, audio = HaloAdapter("127.0.0.1", port, TOKEN).stream_av()
+        self.assertEqual(image, decode_rpim(rpim565(), stream=True))
+        self.assertEqual(audio, pcm)
+        self.join_server(thread, errors)
+        for malformed in (rpim565_rle()[:-1],
+                          rpim565_rle() + b"extra",
+                          rpim565_rle()[:20] + b"\xff\x00",
+                          rpim565_rle()[:20] + b"\x7f\x00\x00"):
+            with self.subTest(size=len(malformed)), self.assertRaises(HaloProtocolError):
+                decode_rpim(malformed, stream=True)
 
     # Kevin Boggs: test_screenshot_and_stream_exchange - New3DS integration.
     def test_screenshot_and_stream_exchange(self):

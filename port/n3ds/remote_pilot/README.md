@@ -168,13 +168,18 @@ stage timings every frame and queries memory every 30 frames.
 The RPIM body is 16 little-endian header bytes followed by top and bottom
 pixel buffers. Header offsets are: `0..3` magic `RPIM`; `4..5` top width;
 `6..7` top height; `8..9` bottom width; `10..11` bottom height; `12..13`
-pixel format `1` (RGB888) or `2` (RGB565); `14..15` orientation `1`
+pixel format `1` (RGB888), `2` (RGB565), or `3` (RGB565 RLE); `14..15` orientation `1`
 (portrait buffer).
 
 `shot` uses RGB888 (format 1) at 240×400 and 240×320, for 518416 total bytes
 including the header. `stream` uses little-endian RGB565 (format 2) at
-120×200 and 120×160, for 86416 bytes. Older RGB888 stream packets remain
-accepted by the PC receiver.
+120×200 and 120×160, for 86416 bytes before optional audio. The live stream
+uses format 3 when its lossless encoding is smaller: bytes `16..19` give the
+little-endian encoded byte count, followed by tokens for exactly 43200 pixels.
+A token with bit 7 set repeats the next two RGB565 bytes `(token & 127) + 1`
+times; a token without bit 7 copies that many literal two-byte pixels. The
+`RPAU` trailer follows the encoded pixels. Frames that do not shrink stay in
+format 2. Older RGB888 stream packets remain accepted by the PC receiver.
 
 The game framebuffer stores BGR bytes. Full captures swap red and blue before
 sending; live preview packs RGB565 from those bytes. Rotate each portrait buffer 90 degrees

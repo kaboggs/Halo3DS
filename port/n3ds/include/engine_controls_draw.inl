@@ -377,8 +377,8 @@ void n3ds_gpu_remote_pilot_dev_menu(int open,int status,const char *address,int 
    link_text_center(200,151,"ARM LINK FILE ON SD BEFORE BOOT",13,ink,255,1);
    link_text_center(200,168,"RETRY CANNOT ARM THIS SESSION",13,cyan,255,1);
   }else if(status==2){
-   link_text_center(200,151,"PAIRED PC AUTHENTICATED",13,ink,255,1);
-   link_text_center(200,168,"OPEN REMOTE PILOT ON PC",13,cyan,255,1);
+   link_text_center(200,151,"PC LINK ACTIVE",16,ink,255,1);
+   link_text_center(200,174,"OPEN VIEWER ON PC",15,cyan,255,1);
   }else{
    link_text_center(200,151,"CHECK 3DS WI-FI AND PC VIEWER",13,ink,255,1);
    link_text_center(200,168,"A REOPENS LOCAL LISTENER",13,cyan,255,1);
@@ -399,7 +399,7 @@ void n3ds_gpu_remote_pilot_dev_menu(int open,int status,const char *address,int 
   for(char *p=ip_line;*p;++p)if(*p>='a' && *p<='z')*p-=32;
   link_text(30,108,ip_line,14,ink,255,0);
   const char *bottom_feedback=action==1?"RETRYING LINK":action==2?"BUG IT QUEUED":action==3?"CLOSING":action==4?"ARM LINK ON SD":action==5?"NEEDS ARMED LINK":hud_visible?"TOP BADGE ON":"TOP BADGE OFF";
-  link_text_center(118,150,action_frames>0?bottom_feedback:"PC VIEWER SCANS",11,action_frames>0?signal:ink,255,0);
+  link_text_center(118,150,action_frames>0?bottom_feedback:"PC VIEWER READY",13,action_frames>0?signal:ink,255,0);
   link_quad(226,143,74,26,rim,255,0);
   link_quad(228,145,70,22,card,255,0);
   link_text_center(263,150,hud_visible?"HUD ON":"HUD OFF",11,cyan,255,0);

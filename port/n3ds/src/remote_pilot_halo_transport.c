@@ -52,7 +52,55 @@ static struct halo_rp_pad_state rp_pad_state;
 static struct halo_rp_touch_state rp_touch_state;
 static int rp_capture_state;
 static unsigned char *rp_stream_buffer;
+static unsigned char *rp_stream_packed;
 static size_t rp_stream_length;
+
+/* Kevin Boggs: rp_pack_stream - New3DS integration. */
+static size_t rp_pack_stream(unsigned char *out, size_t capacity,
+    const unsigned char *raw, size_t length)
+{
+    const size_t pixels = 120u * 200u + 120u * 160u;
+    if (length < RP_STREAM_IMAGE_BYTES || capacity < 20) return 0;
+    memcpy(out, raw, 16);
+    out[12] = 3; out[13] = 0; /* RLE of little-endian RGB565 */
+    size_t in = 0, used = 20;
+    const unsigned char *source = raw + 16;
+    while (in < pixels) {
+        size_t run = 1;
+        while (run < 128 && in + run < pixels &&
+            source[(in + run) * 2] == source[in * 2] &&
+            source[(in + run) * 2 + 1] == source[in * 2 + 1]) ++run;
+        if (run >= 2) {
+            if (used + 3 > capacity) return 0;
+            out[used++] = (unsigned char)(0x80u | (run - 1));
+            out[used++] = source[in * 2];
+            out[used++] = source[in * 2 + 1];
+            in += run;
+        } else {
+            size_t start = in++;
+            while (in < pixels && in - start < 128) {
+                if (in + 1 < pixels && source[in * 2] == source[(in + 1) * 2] &&
+                    source[in * 2 + 1] == source[(in + 1) * 2 + 1]) break;
+                ++in;
+            }
+            size_t count = in - start;
+            if (used + 1 + count * 2 > capacity) return 0;
+            out[used++] = (unsigned char)(count - 1);
+            memcpy(out + used, source + start * 2, count * 2);
+            used += count * 2;
+        }
+    }
+    size_t packed = used - 20;
+    if (used + length - RP_STREAM_IMAGE_BYTES >= capacity ||
+        used + length - RP_STREAM_IMAGE_BYTES >= length) return 0;
+    out[16] = (unsigned char)packed;
+    out[17] = (unsigned char)(packed >> 8);
+    out[18] = (unsigned char)(packed >> 16);
+    out[19] = (unsigned char)(packed >> 24);
+    memcpy(out + used, raw + RP_STREAM_IMAGE_BYTES,
+        length - RP_STREAM_IMAGE_BYTES);
+    return used + length - RP_STREAM_IMAGE_BYTES;
+}
 
 /* Kevin Boggs: rp_private_ip - New3DS integration. */
 static int rp_private_ip(uint32_t host_order)
@@ -345,6 +393,12 @@ static FILE *rp_capture_request(int stream, size_t *bytes,
         if (!rp_stream_buffer) return NULL;
         *bytes = rp_stream_length;
         *memory = rp_stream_buffer;
+        if (!rp_stream_packed) rp_stream_packed = malloc(RP_STREAM_BYTES + 512);
+        if (rp_stream_packed) {
+            size_t packed = rp_pack_stream(rp_stream_packed,
+                RP_STREAM_BYTES + 512, rp_stream_buffer, rp_stream_length);
+            if (packed) { *bytes = packed; *memory = rp_stream_packed; }
+        }
         return NULL;
     }
     FILE *file = fopen(RP_SHOT, "rb");
@@ -560,6 +614,7 @@ failed:
     if (rp_soc_started) { socExit(); rp_soc_started = 0; }
     free(rp_soc_memory); rp_soc_memory = NULL;
     free(rp_stream_buffer); rp_stream_buffer = NULL;
+    free(rp_stream_packed); rp_stream_packed = NULL;
 }
 
 /* Kevin Boggs: halo_rp_transport_stop - New3DS integration. */
@@ -572,6 +627,7 @@ void halo_rp_transport_stop(void)
     if (rp_soc_started) { socExit(); rp_soc_started = 0; }
     free(rp_soc_memory); rp_soc_memory = NULL;
     free(rp_stream_buffer); rp_stream_buffer = NULL;
+    free(rp_stream_packed); rp_stream_packed = NULL;
     memset(rp_secret, 0, sizeof(rp_secret));
     memset(&rp_pad_state, 0, sizeof(rp_pad_state));
     halo_rp_touch_clear(&rp_touch_state);

@@ -57,7 +57,7 @@ class Adapter(ReferenceAdapter):
             with self._io_lock:
                 device = self._client(host, config)
                 meta = device.meta()
-                perf = device.perf()
+                perf = device.perf() if self.performance_enabled() else None
         except HaloAdapterError as exc:
             raise TransportError("Paired device did not answer") from exc
         sequence = meta.get("bugItSequence", 0)
@@ -73,7 +73,7 @@ class Adapter(ReferenceAdapter):
             self._last_seen = time.monotonic()
             self._meta = {"label": "Halo3DS", "state": "Paired", "captureSequence": sequence,
                           "deviceModel": meta["deviceModel"]}
-            self._perf = perf
+            self._perf = perf if self.performance_enabled() else None
             self._discovery = "Connected to Halo3DS"
         self.cache_path.write_text(json.dumps({"host": host}) + "\n", encoding="ascii")
         if prior is not None and sequence and sequence != prior and self._event_sink:
