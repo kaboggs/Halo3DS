@@ -18,6 +18,16 @@ int n3ds_controls_high_textures(void);
 int n3ds_controls_show_fps(void);
 int n3ds_controls_decals(void);
 void n3ds_controls_draw(void);
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+/* Kevin Boggs: n3ds_remote_pilot_dev_filter - New3DS integration. */
+void n3ds_remote_pilot_dev_filter(struct native_input_sample *sample);
+/* Kevin Boggs: n3ds_remote_pilot_dev_draw - New3DS integration. */
+void n3ds_remote_pilot_dev_draw(void);
+/* Kevin Boggs: n3ds_remote_pilot_dev_active - New3DS integration. */
+int n3ds_remote_pilot_dev_active(void);
+/* Kevin Boggs: n3ds_gpu_remote_pilot_dev_menu - New3DS integration. */
+void n3ds_gpu_remote_pilot_dev_menu(int open, int status, const char *address, int action, int action_frames, int hud_visible);
+#endif
 /* Tests restore runtime preferences without writing the user's file. */
 void n3ds_controls_get(struct native_control_settings *settings);
 void n3ds_controls_set(const struct native_control_settings *settings);
@@ -44,6 +54,7 @@ void n3ds_pc_local_menu_filter(struct native_input_sample *sample);
 void n3ds_pc_local_menu_draw(void);
 void n3ds_pc_local_menu_queue_reopen(void);
 int n3ds_pc_local_menu_active(void);
+int n3ds_pc_local_menu_remote_preview(const char *selection);
 void n3ds_gpu_pc_local_menu(int map,int mode,int bots,int difficulty,int weapon_set,int vehicle_choice,int page,int field,int error,int high_textures,int original);
 #endif
 #endif

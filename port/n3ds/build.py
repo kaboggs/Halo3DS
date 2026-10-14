@@ -50,6 +50,7 @@ def main():
     parser.add_argument('--packer', default=os.environ.get('THREEDSXTOOL') or str(ROOT.parent/'3dsxtool.exe'))
     parser.add_argument('--jobs', type=int, default=2, choices=range(1, 9))
     parser.add_argument('--test-frames', type=int, default=0, help='0 produces the playable release; positive values stop after that many frames')
+    parser.add_argument('--remote-pilot-dev-menu', action='store_true', help='Include local-only Remote Pilot status and retry menu (SELECT+X)')
     parser.add_argument('--diagnostics', action='store_true', help='Enable renderer checks and material profile; use with --test-frames or --diagnostic-pc-play')
     parser.add_argument('--diagnostic-audio-trace', action='store_true', help='Trace bounded DSP queue and playback state; use with --test-frames or --diagnostic-pc-play')
     parser.add_argument('--diagnostic-particle-profile', action='store_true', help='Trace original particle animation and physics time in a diagnostic match')
@@ -150,6 +151,7 @@ def main():
     digest.update(bytes([bool(args.experimental_pc_runtime), bool(args.unified_ui)]))
     build_id = int(digest.hexdigest()[:8],16)
     defines = [f'-DHALO_N3DS_CHECKPOINT_BUILD=0x{build_id:08x}u','-DHALO_N3DS_CHECKPOINT_FEATURE=1',f'-DHALO_N3DS_MISSION_TICKS={args.test_frames}']
+    if args.remote_pilot_dev_menu: defines.append('-DHALO_N3DS_REMOTE_PILOT_DEV_MENU=1')
     if args.diagnostics: defines.append('-DHALO_N3DS_RENDERER_TESTS=1')
     if args.diagnostic_audio_trace: defines.append('-DHALO_N3DS_AUDIO_TRACE=1')
     if args.diagnostic_particle_profile: defines.append('-DHALO_N3DS_PARTICLE_PROFILE=1')

@@ -1,0 +1,147 @@
+{
+  "groups": [
+    {
+      "name": "Installed PC maps",
+      "items": [
+        {
+          "label": "Battle Creek",
+          "id": "map:beavercreek"
+        },
+        {
+          "label": "Blood Gulch",
+          "id": "map:bloodgulch"
+        },
+        {
+          "label": "Boarding Action",
+          "id": "map:boardingaction"
+        },
+        {
+          "label": "Derelict",
+          "id": "map:carousel"
+        },
+        {
+          "label": "Chill Out",
+          "id": "map:chillout"
+        },
+        {
+          "label": "Damnation",
+          "id": "map:damnation"
+        },
+        {
+          "label": "Danger Canyon",
+          "id": "map:dangercanyon"
+        },
+        {
+          "label": "Death Island",
+          "id": "map:deathisland"
+        },
+        {
+          "label": "Gephyrophobia",
+          "id": "map:gephyrophobia"
+        },
+        {
+          "label": "Hang 'Em High",
+          "id": "map:hangemhigh"
+        },
+        {
+          "label": "Ice Fields",
+          "id": "map:icefields"
+        },
+        {
+          "label": "Infinity",
+          "id": "map:infinity"
+        },
+        {
+          "label": "Longest",
+          "id": "map:longest"
+        },
+        {
+          "label": "Prisoner",
+          "id": "map:prisoner"
+        },
+        {
+          "label": "Chiron TL-34",
+          "id": "map:putput"
+        },
+        {
+          "label": "Rat Race",
+          "id": "map:ratrace"
+        },
+        {
+          "label": "Sidewinder",
+          "id": "map:sidewinder"
+        },
+        {
+          "label": "Timberland",
+          "id": "map:timberland"
+        },
+        {
+          "label": "Wizard",
+          "id": "map:wizard"
+        }
+      ]
+    },
+    {
+      "name": "Weapon models (preview a map first)",
+      "items": [
+        {
+          "label": "PISTOL",
+          "id": "weapon:pistol"
+        },
+        {
+          "label": "ASSAULT RIFLE",
+          "id": "weapon:assault_rifle"
+        },
+        {
+          "label": "PLASMA RIFLE",
+          "id": "weapon:plasma_rifle"
+        },
+        {
+          "label": "SNIPER RIFLE",
+          "id": "weapon:sniper_rifle"
+        },
+        {
+          "label": "ROCKET LAUNCHER",
+          "id": "weapon:rocket_launcher"
+        },
+        {
+          "label": "SHOTGUN",
+          "id": "weapon:shotgun"
+        },
+        {
+          "label": "FLAMETHROWER",
+          "id": "weapon:flamethrower"
+        },
+        {
+          "label": "FUEL ROD",
+          "id": "weapon:fuel_rod"
+        }
+      ]
+    },
+    {
+      "name": "Vehicle models (preview a map first)",
+      "items": [
+        {
+          "label": "WARTHOG",
+          "id": "vehicle:warthog"
+        },
+        {
+          "label": "ROCKET WARTHOG",
+          "id": "vehicle:rocket_warthog"
+        },
+        {
+          "label": "GHOST",
+          "id": "vehicle:ghost"
+        },
+        {
+          "label": "SCORPION",
+          "id": "vehicle:scorpion"
+        },
+        {
+          "label": "BANSHEE",
+          "id": "vehicle:banshee"
+        }
+      ]
+    }
+  ]
+}

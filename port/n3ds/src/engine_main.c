@@ -8,6 +8,8 @@
 #include "engine_textures.h"
 #include "engine_renderer.h"
 #include "engine_parallel.h"
+#include "remote_pilot_halo.h"
+#include "remote_pilot_halo_transport.h"
 
 static FILE *log_file;
 static char log_buffer[16*1024];
@@ -77,6 +79,8 @@ int main(void)
     n3ds_log("LOW MEMORY FIXTURE: 24 MiB application heap + 32 MiB linear heap");
 #endif
     bool new_model=false;APT_CheckNew3DS(&new_model);
+    halo_rp_set_device_model(new_model);
+    halo_rp_transport_start();
     n3ds_log(new_model?"MODEL: New 3DS family; high-speed CPU and L2 cache requested":"MODEL: original 3DS/2DS family; standard CPU speed");
 #ifdef HALO_N3DS_PC_PROBE_MAP
     extern int n3ds_pc_cache_probe(const char *);
@@ -110,6 +114,7 @@ int main(void)
         fflush(stdout);flush_console();
     }
     n3ds_log(result ? "RESULT: FAIL" : "RESULT: PASS");
+    halo_rp_transport_stop();
     n3ds_parallel_shutdown();log_async_finish();
     if (log_file) {fclose(log_file);log_file=NULL;}
     while (result && aptMainLoop()) {

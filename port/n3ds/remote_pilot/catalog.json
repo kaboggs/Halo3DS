@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "gameId": "halo3ds",
+  "deviceModels": ["original", "new"],
+  "campaign": [
+    {"id":"a10","name":"The Pillar of Autumn"},
+    {"id":"a30","name":"Halo"},
+    {"id":"a50","name":"The Truth and Reconciliation"},
+    {"id":"b30","name":"The Silent Cartographer"},
+    {"id":"b40","name":"Assault on the Control Room"},
+    {"id":"c10","name":"343 Guilty Spark"},
+    {"id":"c20","name":"The Library"},
+    {"id":"c40","name":"Two Betrayals"},
+    {"id":"d20","name":"Keyes"},
+    {"id":"d40","name":"The Maw"}
+  ],
+  "multiplayer": [
+    {"id":"beavercreek","name":"Battle Creek","sources":["xbox","pc"]},
+    {"id":"bloodgulch","name":"Blood Gulch","sources":["xbox","pc"]},
+    {"id":"boardingaction","name":"Boarding Action","sources":["xbox","pc"]},
+    {"id":"carousel","name":"Derelict","sources":["xbox","pc"]},
+    {"id":"chillout","name":"Chill Out","sources":["xbox","pc"]},
+    {"id":"damnation","name":"Damnation","sources":["xbox","pc"]},
+    {"id":"dangercanyon","name":"Danger Canyon","sources":["pc"]},
+    {"id":"deathisland","name":"Death Island","sources":["pc"]},
+    {"id":"gephyrophobia","name":"Gephyrophobia","sources":["pc"]},
+    {"id":"hangemhigh","name":"Hang 'Em High","sources":["xbox","pc"]},
+    {"id":"icefields","name":"Ice Fields","sources":["pc"]},
+    {"id":"infinity","name":"Infinity","sources":["pc"]},
+    {"id":"longest","name":"Longest","sources":["xbox","pc"]},
+    {"id":"prisoner","name":"Prisoner","sources":["xbox","pc"]},
+    {"id":"putput","name":"Chiron TL-34","sources":["xbox","pc"]},
+    {"id":"ratrace","name":"Rat Race","sources":["xbox","pc"]},
+    {"id":"sidewinder","name":"Sidewinder","sources":["xbox","pc"]},
+    {"id":"timberland","name":"Timberland","sources":["pc"]},
+    {"id":"wizard","name":"Wizard","sources":["xbox","pc"]}
+  ],
+  "preview": {
+    "pcMap3d": true,
+    "weapon3d": ["pistol", "assault_rifle", "plasma_rifle", "sniper_rifle", "rocket_launcher", "shotgun", "flamethrower", "fuel_rod"],
+    "vehicle3d": ["warthog", "rocket_warthog", "ghost", "scorpion", "banshee"],
+    "requiresInstalledOwnerMaps": true,
+    "delivery": "RP1 screen capture of the current in-game preview"
+  },
+  "gameModes": ["slayer", "ctf", "oddball", "king", "race"]
+}

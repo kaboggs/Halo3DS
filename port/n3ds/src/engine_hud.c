@@ -353,6 +353,9 @@ void n3ds_menu_draw_screen(void)
 #ifdef HALO_N3DS_PC_LOCAL_MENU
     n3ds_pc_local_menu_draw();
 #endif
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+    n3ds_remote_pilot_dev_draw();
+#endif
     if(n3ds_main_is_solo_multiplayer() && !game_engine_allow_pause() &&
        !n3ds_controls_active()) n3ds_gpu_match_postgame_lobby();
     for(int i=0;i<4;++i) *rects[i]=saved[i];

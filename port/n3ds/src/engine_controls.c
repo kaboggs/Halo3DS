@@ -5,6 +5,9 @@
 #include "engine_wireless.h"
 #include "engine_files.h"
 #include "interface/ui_widget.h"
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+#include "remote_pilot_halo_transport.h"
+#endif
 #include "main/main.h"
 #include "game/game_engine.h"
 #include "engine_bots.h"
@@ -195,6 +198,102 @@ void n3ds_controls_draw(void)
  if(modal)n3ds_gpu_controls_draw(&settings,selected,n3ds_input_platform_original_model(),save_error);
  else if(n3ds_ui_pause_menu_active())n3ds_gpu_controls_entry();
 }
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+static int dev_menu_open,dev_menu_swallow;
+static unsigned int dev_menu_previous;
+static int dev_menu_action,dev_menu_action_frames,dev_menu_close_frames;
+static int dev_menu_hud_visible=1,dev_menu_hud_loaded;
+static const char dev_menu_hud_path[]="sdmc:/halo-source/remote-pilot-upstream-dev-hud.cfg";
+/* Kevin Boggs: dev_menu_hud_load - New3DS integration. */
+static void dev_menu_hud_load(void)
+{
+ if(dev_menu_hud_loaded)return;
+ dev_menu_hud_loaded=1;
+ FILE *file=fopen(dev_menu_hud_path,"rb");
+ if(!file)return;
+ char value[8]={0};size_t count=fread(value,1,sizeof(value)-1,file);fclose(file);
+ if((count==4 && !memcmp(value,"off\n",4)) ||
+    (count==5 && !memcmp(value,"off\r\n",5)))dev_menu_hud_visible=0;
+}
+/* Kevin Boggs: dev_menu_hud_save - New3DS integration. */
+static int dev_menu_hud_save(void)
+{
+ FILE *file=fopen(dev_menu_hud_path,"wb");
+ if(!file)return 0;
+ const char *value=dev_menu_hud_visible?"on\n":"off\n";
+ size_t length=strlen(value);
+ int ok=fwrite(value,1,length,file)==length;
+ if(fclose(file))ok=0;
+ return ok;
+}
+/* Kevin Boggs: n3ds_remote_pilot_dev_active - New3DS integration. */
+int n3ds_remote_pilot_dev_active(void){return dev_menu_open;}
+/* Kevin Boggs: n3ds_remote_pilot_dev_filter - New3DS integration. */
+void n3ds_remote_pilot_dev_filter(struct native_input_sample *sample)
+{
+ dev_menu_hud_load();
+ unsigned int held=sample->held,fresh=held&~dev_menu_previous;
+ dev_menu_previous=held;
+ int available=main_menu_is_active() || n3ds_ui_pause_menu_active();
+ if(dev_menu_swallow){if(!held)dev_menu_swallow=0;memset(sample,0,sizeof(*sample));return;}
+ if(!dev_menu_open){
+  const unsigned int chord=NATIVE_KEY_SELECT|NATIVE_KEY_X;
+  if(available && !n3ds_controls_active() &&
+#ifdef HALO_N3DS_PC_LOCAL_MENU
+     !n3ds_pc_local_menu_active() &&
+#endif
+     (held&chord)==chord && (fresh&chord)){
+   dev_menu_open=1;dev_menu_swallow=1;
+   n3ds_log("REMOTE PILOT DEV: status menu opened");
+   memset(sample,0,sizeof(*sample));
+  }
+  return;
+ }
+ if(!available){dev_menu_open=0;dev_menu_swallow=1;dev_menu_close_frames=0;memset(sample,0,sizeof(*sample));return;}
+ if(dev_menu_close_frames){memset(sample,0,sizeof(*sample));return;}
+ if(fresh&NATIVE_KEY_A || ((fresh&NATIVE_KEY_TOUCH) &&
+    sample->touch_x>=18 && sample->touch_x<106 && sample->touch_y>=174 && sample->touch_y<222)){
+  halo_rp_transport_retry();
+  dev_menu_action=halo_rp_transport_status()==HALO_RP_NOT_ARMED?4:1;
+  dev_menu_action_frames=48;
+  n3ds_log("REMOTE PILOT DEV: retry requested");
+ }else if(fresh&NATIVE_KEY_Y || ((fresh&NATIVE_KEY_TOUCH) &&
+    sample->touch_x>=116 && sample->touch_x<204 && sample->touch_y>=174 && sample->touch_y<222)){
+  int queued=halo_rp_transport_bug_it_request();
+  dev_menu_action=queued?2:5;dev_menu_action_frames=48;
+  n3ds_log(queued?
+   "REMOTE PILOT DEV: Bug It screens and report requested":"REMOTE PILOT DEV: Bug It requires armed link");
+ }else if(fresh&NATIVE_KEY_X || ((fresh&NATIVE_KEY_TOUCH) &&
+    sample->touch_x>=226 && sample->touch_x<300 && sample->touch_y>=143 && sample->touch_y<169)){
+  dev_menu_hud_visible=!dev_menu_hud_visible;
+  dev_menu_action=6;dev_menu_action_frames=48;
+  n3ds_log(dev_menu_hud_save()?"REMOTE PILOT DEV: top link badge setting saved":"REMOTE PILOT DEV: top link badge setting could not save");
+ }else if(fresh&(NATIVE_KEY_B|NATIVE_KEY_START) || ((fresh&NATIVE_KEY_TOUCH) &&
+    sample->touch_x>=214 && sample->touch_x<302 && sample->touch_y>=174 && sample->touch_y<222)){
+  dev_menu_action=3;dev_menu_action_frames=12;dev_menu_close_frames=12;
+ }
+ memset(sample,0,sizeof(*sample));
+}
+/* Kevin Boggs: n3ds_remote_pilot_dev_draw - New3DS integration. */
+void n3ds_remote_pilot_dev_draw(void)
+{
+ dev_menu_hud_load();
+ if(!dev_menu_open && (n3ds_controls_active()
+#ifdef HALO_N3DS_PC_LOCAL_MENU
+    || n3ds_pc_local_menu_active()
+#endif
+    ))return;
+ enum halo_rp_link_state status=halo_rp_transport_status();
+ if(dev_menu_open || main_menu_is_active() || n3ds_ui_pause_menu_active() ||
+    (status!=HALO_RP_NOT_ARMED && dev_menu_hud_visible)){
+  char address[16];
+  if(!halo_rp_transport_address(address))strcpy(address,"offline");
+  n3ds_gpu_remote_pilot_dev_menu(dev_menu_open,(int)status,address,dev_menu_action,dev_menu_action_frames,dev_menu_hud_visible);
+  if(dev_menu_action_frames>0)--dev_menu_action_frames;
+  if(dev_menu_close_frames>0 && --dev_menu_close_frames==0){dev_menu_open=0;dev_menu_swallow=1;dev_menu_action_frames=0;}
+ }
+}
+#endif
 #ifdef HALO_N3DS_PC_LOCAL_MENU
 static int pc_menu_open,pc_menu_page,pc_menu_field,pc_menu_map,pc_menu_mode,pc_menu_bots,pc_menu_difficulty=1;
 static int pc_menu_weapon_set,pc_menu_vehicle_choice,pc_menu_error,pc_menu_swallow,pc_menu_reopen_pending;
@@ -219,6 +318,48 @@ static int pc_menu_next_map(int from,int delta)
  if(!delta){if(n3ds_pc_map_available(n3ds_pc_diagnostic_maps[from]))return from;delta=1;}
  for(int n=0;n<19;++n){from=(from+19+delta)%19;if(n3ds_pc_map_available(n3ds_pc_diagnostic_maps[from]))return from;}
  return 0;
+}
+/* Select an owner-installed map or model in the existing 3D menu. This only
+ * changes menu state; it never queues a match or reads a path from the PC. */
+int n3ds_pc_local_menu_remote_preview(const char *selection)
+{
+ static const struct {const char *id;int choice;} weapons[]={
+  {"pistol",1},{"assault_rifle",2},{"plasma_rifle",3},{"sniper_rifle",4},
+  {"rocket_launcher",6},{"shotgun",7},{"flamethrower",11},{"fuel_rod",12}};
+ static const struct {const char *id;int choice;} vehicles[]={
+  {"warthog",0},{"rocket_warthog",3},{"ghost",4},{"scorpion",5},{"banshee",1}};
+ const char *item=NULL,*map=NULL;size_t item_length=0;
+ int page=0,field=0,choice=0,map_index=-1;
+ if(!selection || !pc_menu_available() || n3ds_controls_active())return 0;
+ if(!strncmp(selection,"map:",4))map=selection+4;
+ else{
+  if(!strncmp(selection,"weapon:",7)){page=1;field=0;item=selection+7;}
+  else if(!strncmp(selection,"vehicle:",8)){page=1;field=1;item=selection+8;}
+  else return 0;
+  const char *separator=strchr(item,':');
+  if(!separator || strchr(separator+1,':'))return 0;
+  item_length=(size_t)(separator-item);map=separator+1;
+  if(!item_length || item_length>31)return 0;
+  int found=0;
+  if(field==0){for(unsigned i=0;i<sizeof(weapons)/sizeof(weapons[0]);++i)
+   if(strlen(weapons[i].id)==item_length && !strncmp(item,weapons[i].id,item_length))
+    {choice=weapons[i].choice;found=1;break;}}
+  else{for(unsigned i=0;i<sizeof(vehicles)/sizeof(vehicles[0]);++i)
+   if(strlen(vehicles[i].id)==item_length && !strncmp(item,vehicles[i].id,item_length))
+    {choice=vehicles[i].choice;found=1;break;}}
+  if(!found)return 0;
+ }
+ if(!map || !*map || strlen(map)>31)return 0;
+ for(unsigned i=0;i<sizeof(n3ds_pc_diagnostic_maps)/sizeof(n3ds_pc_diagnostic_maps[0]);++i)
+  if(!strcmp(map,n3ds_pc_diagnostic_maps[i])){map_index=(int)i;break;}
+ if(map_index<0)return 0;
+ char path[96];
+ snprintf(path,sizeof(path),"sdmc:/halo-source/pc-retail/%s.map",map);
+ FILE *file=fopen(path,"rb");if(!file)return 0;fclose(file);
+ pc_menu_open=1;pc_menu_page=page;pc_menu_field=field;pc_menu_map=map_index;
+ if(page){if(field==0)pc_menu_weapon_set=choice;else pc_menu_vehicle_choice=choice;}
+ pc_menu_error=0;pc_menu_swallow=1;pc_menu_previous=0;
+ return 1;
 }
 /* Kevin Boggs: pc_menu_field_count - New3DS integration. */
 static int pc_menu_field_count(void)

@@ -9,6 +9,9 @@ int n3ds_audio_queue(int channel,const void *data,unsigned int bytes,int encodin
 void n3ds_audio_stop(int channel);
 void n3ds_audio_pause(int paused);
 void n3ds_audio_properties(int channel,float rate,float left,float right);
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+unsigned int n3ds_audio_remote_take(short *out,unsigned int capacity);
+#endif
 unsigned int n3ds_xbox_adpcm_decode(const unsigned char *data,unsigned int bytes,int channels,short *pcm,unsigned int capacity);
 int n3ds_audio_codec_tests(void);
 #endif

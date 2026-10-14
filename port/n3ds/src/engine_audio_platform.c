@@ -21,6 +21,49 @@ static short *storage;
 static int ready,count,paused;
 static unsigned int decoded_frames,underruns,submitted;
 static int exit_registered;
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+#define REMOTE_AUDIO_RING 16384u
+static ndspWaveBuf remote_capture;
+static short remote_capture_pcm[160 * 2];
+static short remote_audio_ring[REMOTE_AUDIO_RING];
+static LightLock remote_audio_lock;
+static unsigned long long remote_audio_written,remote_audio_read;
+static unsigned int remote_audio_frame;
+static volatile int remote_audio_enabled;
+/* Kevin Boggs: remote_audio_callback - New3DS integration. */
+static void remote_audio_callback(void *unused)
+{
+    (void)unused;
+    if(!remote_audio_enabled)return;
+    unsigned int frame=ndspGetFrameCount();
+    if(frame==remote_audio_frame)return;
+    remote_audio_frame=frame;
+    LightLock_Lock(&remote_audio_lock);
+    /* NDSP captures 160 interleaved stereo frames before this callback.
+     * Box-filter each adjacent pair to mono at 16364 samples/second. */
+    for(unsigned int i=0;i<80;++i){
+        int at=(int)i*4;
+        int sum=remote_capture_pcm[at]+remote_capture_pcm[at+1]+
+            remote_capture_pcm[at+2]+remote_capture_pcm[at+3];
+        remote_audio_ring[remote_audio_written%REMOTE_AUDIO_RING]=(short)(sum/4);
+        ++remote_audio_written;
+    }
+    LightLock_Unlock(&remote_audio_lock);
+}
+/* Kevin Boggs: n3ds_audio_remote_take - New3DS integration. */
+unsigned int n3ds_audio_remote_take(short *out,unsigned int capacity)
+{
+    if(!out || !capacity || !remote_audio_enabled)return 0;
+    LightLock_Lock(&remote_audio_lock);
+    unsigned long long available=remote_audio_written-remote_audio_read;
+    if(available>capacity){remote_audio_read=remote_audio_written-capacity;available=capacity;}
+    for(unsigned int i=0;i<(unsigned int)available;++i)
+        out[i]=remote_audio_ring[(remote_audio_read+i)%REMOTE_AUDIO_RING];
+    remote_audio_read=remote_audio_written;
+    LightLock_Unlock(&remote_audio_lock);
+    return (unsigned int)available;
+}
+#endif
 void n3ds_log(const char *);
 #ifdef HALO_N3DS_AUDIO_TRACE
 static unsigned int audio_trace_lines;
@@ -53,6 +96,17 @@ int n3ds_audio_initialize(int channels)
     }
     decoded_frames=underruns=submitted=0;
     ndspSetOutputMode(NDSP_OUTPUT_STEREO);ndspSetMasterVol(.8f);
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+    LightLock_Init(&remote_audio_lock);
+    remote_audio_written=remote_audio_read=0;
+    remote_audio_frame=~0u;
+    memset(&remote_capture,0,sizeof(remote_capture));
+    remote_capture.data_pcm16=remote_capture_pcm;
+    remote_capture.nsamples=160;
+    remote_audio_enabled=1;
+    ndspSetCapture(&remote_capture);
+    ndspSetCallback(remote_audio_callback,NULL);
+#endif
     for(int i=0;i<count;++i) {
         ndspChnReset(i);ndspChnSetInterp(i,NDSP_INTERP_LINEAR);
         for(int p=0;p<PACKETS;++p) voices[i].pcm[p]=storage+(i*PACKETS+p)*FRAMES*2;
@@ -93,6 +147,10 @@ void userAppExit(void)
 }
 void n3ds_audio_dispose(void)
 {
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+    remote_audio_enabled=0;
+    if(ready){ndspSetCallback(NULL,NULL);ndspSetCapture(NULL);}
+#endif
     if(!ready) return;
     for(int i=0;i<count;++i) n3ds_audio_stop(i);
     ndspExit();linearFree(storage);storage=NULL;ready=0;

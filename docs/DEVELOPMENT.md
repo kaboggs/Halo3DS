@@ -893,6 +893,11 @@ user-supplied game data for local integration tests. Player log locations and
 reporting steps are in the [README](../README.md#reporting-problems). Record
 the exact executable hash, whether the issue repeats, and a photo if no dump exists.
 
+The optional paired PC QA adapter uses the separate
+[Remote Pilot host tool](https://github.com/kaboggs/RemotePilot) and has its own
+[RP1 protocol and integration guide](../port/n3ds/remote_pilot/README.md).
+It requires an explicit local SD config and embeds no PC address or game assets.
+
 When changing native code, keep a known-good build, record the new executable
 hash, retain its ELF/map privately, and test both model families. Build outputs,
 SDK headers, maps, saves and tester logs belong outside Git.

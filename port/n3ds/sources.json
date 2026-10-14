@@ -638,6 +638,26 @@
       "compiler": "gcc"
     },
     {
+      "source": "port/n3ds/src/remote_pilot_halo.c",
+      "compiler": "gcc"
+    },
+    {
+      "source": "port/n3ds/src/remote_pilot_halo_transport.c",
+      "compiler": "gcc"
+    },
+    {
+      "source": "port/n3ds/src/remote_pilot_sha256.c",
+      "compiler": "gcc"
+    },
+    {
+      "source": "port/n3ds/src/remote_pilot_halo_pad.c",
+      "compiler": "gcc"
+    },
+    {
+      "source": "port/n3ds/src/remote_pilot_halo_touch.c",
+      "compiler": "gcc"
+    },
+    {
       "source": "port/n3ds/src/engine_platform.c",
       "compiler": "gcc"
     },

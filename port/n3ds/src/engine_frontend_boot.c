@@ -1,7 +1,9 @@
 /* New3DS integration additions by Kevin Boggs. */
 #include "engine_checkpoint.h"
 #include "engine_wireless.h"
-
+#include "engine_diagnostics.h"
+#include "remote_pilot_halo.h"
+#include "remote_pilot_halo_transport.h"
 #if defined(HALO_N3DS_EXPERIMENTAL_PC_MAP_ID) || defined(HALO_N3DS_EXPERIMENTAL_PC_MATRIX)
 #include "pc_diagnostic_maps.h"
 #endif
@@ -39,6 +41,7 @@ short n3ds_ui_pc_expansion_map_count(void);
 #include "rasterizer/rasterizer.h"
 #include "main/console.h"
 #include "main/main.h"
+#include "hs/hs.h"
 #include "camera/director.h"
 #include "camera/observer.h"
 #include "interface/ui_widget.h"
@@ -88,6 +91,7 @@ static const char *native_cycle_maps[]={"a10","a30","a50","b30","b40","c10","c20
 #include "items/weapons.h"
 #endif
 void n3ds_log(const char *);
+int n3ds_pc_tags_active(void);
 /* Defined only by the opt-in controller fixture. Ordinary builds retain the
  * original clock-based local random seed and do not link the fixture. */
 void __attribute__((weak)) n3ds_frontend_fixture_seed(void) {}
@@ -1052,9 +1056,14 @@ int halo_engine_boot(void)
     CHECK(!menu_keys_load());
 #endif
     unsigned int previous_postgame_buttons=0;
+    long long rp_previous_frame_start=0;
     for(frame=0;(!HALO_N3DS_MISSION_TICKS || frame<HALO_N3DS_MISSION_TICKS) && n3ds_engine_app_running();++frame) {
         struct native_input_sample sample;
         long long start=n3ds_engine_ticks();long local,player,unit=NONE;
+        if (frame && frame%300==0) halo_rp_transport_start();
+        uint64_t rp_frame_delta=rp_previous_frame_start ?
+            (uint64_t)(start-rp_previous_frame_start) : 0;
+        rp_previous_frame_start=start;
 #ifdef HALO_N3DS_EXPERIMENTAL_PC_ALL_MAPS
         if(frame==120) {
             snprintf(message,sizeof(message),"EXPERIMENTAL PC MENU: %d expansion maps have matching UI assets and installed caches",n3ds_ui_pc_expansion_map_count());
@@ -1137,9 +1146,24 @@ int halo_engine_boot(void)
         }
         #endif
         n3ds_main_frontend_services();
+        char rp_command[128];
+        if (halo_rp_take_console(rp_command, sizeof(rp_command))) {
+            int accepted;
+            if (!strncmp(rp_command, "rp_preview ", 11)) {
+#ifdef HALO_N3DS_PC_LOCAL_MENU
+                accepted = n3ds_pc_local_menu_remote_preview(rp_command + 11);
+#else
+                accepted = 0;
+#endif
+            } else accepted = 0;
+            halo_rp_complete_console(accepted);
+            n3ds_log(accepted ? "REMOTE PILOT: console command accepted" :
+                "REMOTE PILOT: console command rejected");
+        }
         long long services_end=n3ds_engine_ticks();
         n3ds_frontend_trace("input");
         n3ds_input_platform_poll(&sample);
+        halo_rp_apply_input(&sample);
 #ifdef HALO_N3DS_POSTGAME_RETURN_TEST
         if(frame+1==450) {
             CHECK(n3ds_main_is_solo_multiplayer());
@@ -1675,6 +1699,7 @@ int halo_engine_boot(void)
         }
         #endif
         n3ds_frontend_trace("render-complete");
+        halo_rp_capture_if_requested();
         loop_profile[0]+=services_end-start;loop_profile[1]+=simulation_start-services_end;
         loop_profile[2]+=simulation_end-simulation_start;loop_profile[3]+=audio_end-simulation_end;
         loop_profile[4]+=n3ds_engine_ticks()-audio_end;++loop_frames;
@@ -1693,6 +1718,20 @@ int halo_engine_boot(void)
         if(HALO_N3DS_MISSION_TICKS && frame+1==200) CHECK(!n3ds_gpu_screen_quad_capture());
         input_frame_end();
         const long long pacing_stages[5]={services_end,simulation_start,simulation_end,audio_end,n3ds_engine_ticks()};
+        const uint64_t work_stages[5]={
+            (uint64_t)(services_end-start),
+            (uint64_t)(simulation_start-services_end),
+            (uint64_t)(simulation_end-simulation_start),
+            (uint64_t)(audio_end-simulation_end),
+            (uint64_t)(pacing_stages[4]-audio_end)};
+        struct native_memory_snapshot rp_memory={0};
+        if((frame+1)%30==0) n3ds_engine_memory_snapshot(&rp_memory);
+        halo_rp_record_frame((uint64_t)(pacing_stages[4]*1000/n3ds_engine_tick_frequency()),
+            (uint32_t)(frame+1),(int32_t)game_time_get(),main_get_map_name(),
+            main_menu_is_active(),n3ds_pc_tags_active(),work_stages,
+            rp_frame_delta,(uint64_t)n3ds_engine_tick_frequency(),
+            (frame+1)%30==0 && rp_memory.application_free_valid,
+            rp_memory.heap_free,rp_memory.linear_free,rp_memory.application_free);
         frame_pacing_observe(start,pacing_stages,!main_menu_is_active() && !cinematic_in_progress());
         n3ds_gpu_frame_work((n3ds_engine_ticks()-start)*(1000.f/n3ds_engine_tick_frequency()));
         n3ds_engine_pace_frame(start);

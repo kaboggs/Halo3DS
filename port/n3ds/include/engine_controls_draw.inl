@@ -273,6 +273,150 @@ void n3ds_gpu_map_browser(int map,int pc,int ready)
     n3ds_gpu_hud_screen(0);n3ds_gpu_texture_bind(0,saved);n3ds_gpu_world_state_restore();
 }
 
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+#include "engine_link_font_data.inl"
+static void *link_font_texture;
+/* Kevin Boggs: link_font_prepare - New3DS integration. */
+static int link_font_prepare(void)
+{
+ if(link_font_texture)return 1;
+ unsigned int *pixels=malloc(128u*128u*sizeof(*pixels));
+ if(!pixels)return 0;
+ static const unsigned int spread[8]={0,1,4,5,16,17,20,21};
+ for(unsigned int y=0;y<128;++y)for(unsigned int x=0;x<128;++x){
+  unsigned int pixel=y*128+x,packed=link_font_alpha4[pixel/2];
+  unsigned int alpha=((pixel&1)?packed&15:packed>>4)*17;
+  unsigned int py=127-y;
+  unsigned int at=((py/8)*16+x/8)*64+spread[x&7]+2*spread[py&7];
+  /* GPU_RGBA8 stores alpha in the low byte. */
+  pixels[at]=0xffffff00u|alpha;
+ }
+ link_font_texture=n3ds_gpu_texture_create(pixels,128,128);
+ free(pixels);
+ return link_font_texture!=NULL;
+}
+static unsigned int link_tint(unsigned int rgb,unsigned int alpha)
+{return ((alpha&255)<<24)|((rgb&255)<<16)|(rgb&0xff00)|((rgb>>16)&255);}
+/* Kevin Boggs: link_quad - New3DS integration. */
+static void link_quad(float x,float y,float w,float h,unsigned int rgb,unsigned int alpha,int top)
+{
+ if(!controls_white){unsigned int pixels[64];for(int i=0;i<64;++i)pixels[i]=~0u;controls_white=n3ds_gpu_texture_create(pixels,8,8);}
+ if(!controls_white || !alpha)return;
+ n3ds_gpu_texture_bind(0,controls_white);
+ n3ds_gpu_text_begin(top?400:320,240,link_tint(rgb,alpha),1,0);
+ C3D_AlphaBlend(GPU_BLEND_ADD,GPU_BLEND_ADD,GPU_SRC_ALPHA,GPU_ONE_MINUS_SRC_ALPHA,GPU_ONE,GPU_ONE_MINUS_SRC_ALPHA);
+ struct native_text_vertex q[4]={{{x,y},{1,1,1,1},{0,0}},{{x+w,y},{1,1,1,1},{1,0}},{{x+w,y+h},{1,1,1,1},{1,1}},{{x,y+h},{1,1,1,1},{0,1}}};
+ n3ds_gpu_text_draw(q);
+}
+/* Kevin Boggs: link_text - New3DS integration. */
+static void link_text(float x,float y,const char *message,float size,unsigned int rgb,unsigned int alpha,int top)
+{
+ if(!alpha || !link_font_prepare())return;
+ n3ds_gpu_texture_bind(0,link_font_texture);
+ n3ds_gpu_text_begin(top?400:320,240,link_tint(rgb,alpha),1,0);
+ C3D_AlphaBlend(GPU_BLEND_ADD,GPU_BLEND_ADD,GPU_SRC_ALPHA,GPU_ONE_MINUS_SRC_ALPHA,GPU_ONE,GPU_ONE_MINUS_SRC_ALPHA);
+ for(const char *p=message;*p;++p,x+=size*.82f){
+  const char *found=strchr(link_font_glyphs,*p);
+  unsigned int index=found?(unsigned int)(found-link_font_glyphs):0;
+  float u=(index%8)/8.f,v=(index/8)/8.f;
+  struct native_text_vertex q[4]={{{x,y},{1,1,1,1},{u,v}},{{x+size,y},{1,1,1,1},{u+.125f,v}},{{x+size,y+size},{1,1,1,1},{u+.125f,v+.125f}},{{x,y+size},{1,1,1,1},{u,v+.125f}}};
+  n3ds_gpu_text_draw(q);
+ }
+}
+/* Kevin Boggs: link_text_center - New3DS integration. */
+static void link_text_center(float center,float y,const char *message,float size,unsigned int rgb,unsigned int alpha,int top)
+{link_text(center-(float)strlen(message)*size*.82f*.5f,y,message,size,rgb,alpha,top);}
+/* Kevin Boggs: n3ds_gpu_remote_pilot_dev_menu - New3DS integration. */
+void n3ds_gpu_remote_pilot_dev_menu(int open,int status,const char *address,int action,int action_frames,int hud_visible)
+{
+ static const char *const labels[]={"NOT ARMED","WAITING FOR PC","PC AUTHENTICATED","RETRYING","LISTENER ERROR"};
+ static const char *const hints[]={"PC LINK  OFFLINE","PC LINK  WAITING","PC LINK  ONLINE","PC LINK  RETRY","PC LINK  ERROR"};
+ static const char *const badge[]={"","LINK","LIVE","RETRY","ERR"};
+ if(status<0 || status>4)status=4;
+ if(!address)address="offline";
+ const unsigned int navy=0x07192d,panel=0x123958,card=0x0b2945;
+ const unsigned int rim=0x4faad5,cyan=0x76dcfa,ink=0xd7f2ff;
+ const unsigned int signal=status==2?0x8cf5e4:status==4?0xb8d8e8:cyan;
+ void *saved=n3ds_gpu_texture_bound(0);
+ n3ds_gpu_hud_layout(0);n3ds_gpu_hud_screen(1);
+ if(!open){
+  if(hud_visible && status!=0){
+   n3ds_gpu_hud_screen(0);
+   link_quad(332,4,64,20,navy,205,1);
+   link_quad(332,4,2,20,rim,245,1);
+   link_quad(338,11,6,6,signal,255,1);
+   link_text_center(369,8,badge[status],11,signal,255,1);
+   n3ds_gpu_hud_screen(1);
+  }
+  static unsigned int hint_start_ms;
+  unsigned int now=(unsigned int)osGetTime();
+  if(!hint_start_ms)hint_start_ms=now?now:1;
+  unsigned int elapsed=now-hint_start_ms;
+  float hint_alpha=elapsed<3800?1.f:elapsed<5200?(5200-elapsed)/1400.f:0.f;
+  unsigned int opacity=(unsigned int)(fmaxf(0,fminf(1,hint_alpha))*255.f);
+  if(opacity){
+   link_quad(132,5,184,23,navy,opacity*3/4,0);
+   link_quad(132,5,2,23,rim,opacity,0);
+   link_text_center(224,9,hints[status],13,signal,opacity,0);
+  }
+ }else{
+  n3ds_gpu_hud_screen(0);
+  link_quad(0,0,400,240,navy,255,1);
+  link_quad(18,17,364,206,rim,255,1);
+  link_quad(20,19,360,202,panel,255,1);
+  link_quad(20,19,360,3,cyan,255,1);
+  link_quad(28,65,344,2,0x2c719b,255,1);
+  link_text_center(200,36,"HALO3DS / PC LINK",16,ink,255,1);
+  link_quad(34,74,332,66,card,255,1);
+  link_quad(34,74,3,66,signal,255,1);
+  link_text(48,81,labels[status],16,signal,255,1);
+  char ip_line[32];snprintf(ip_line,sizeof(ip_line),"3DS IP: %s",address);
+  for(char *p=ip_line;*p;++p)if(*p>='a' && *p<='z')*p-=32;
+  link_text(48,106,ip_line,14,ink,255,1);
+  if(status==0){
+   link_text_center(200,151,"ARM LINK FILE ON SD BEFORE BOOT",13,ink,255,1);
+   link_text_center(200,168,"RETRY CANNOT ARM THIS SESSION",13,cyan,255,1);
+  }else if(status==2){
+   link_text_center(200,151,"PAIRED PC AUTHENTICATED",13,ink,255,1);
+   link_text_center(200,168,"OPEN REMOTE PILOT ON PC",13,cyan,255,1);
+  }else{
+   link_text_center(200,151,"CHECK 3DS WI-FI AND PC VIEWER",13,ink,255,1);
+   link_text_center(200,168,"A REOPENS LOCAL LISTENER",13,cyan,255,1);
+  }
+  const char *feedback=action_frames>0?(action==1?"RETRYING LINK":action==2?"BUG IT QUEUED":action==3?"CLOSING":action==4?"ARM LINK FILE ON SD":action==5?"BUG IT NEEDS ARMED LINK":hud_visible?"TOP BADGE ON":"TOP BADGE OFF"):"A RETRY  Y BUG IT  X HUD  B BACK";
+  link_text_center(200,195,feedback,12,action_frames>0?signal:ink,255,1);
+  n3ds_gpu_hud_screen(1);
+  link_quad(0,0,320,240,navy,255,0);
+  link_quad(10,10,300,220,rim,255,0);
+  link_quad(12,12,296,216,panel,255,0);
+  link_quad(12,12,296,3,cyan,255,0);
+  link_text_center(160,27,"REMOTE PILOT",16,ink,255,0);
+  link_quad(22,61,276,78,card,255,0);
+  link_quad(22,61,3,78,signal,255,0);
+  link_text(30,67,"LINK STATUS",14,cyan,255,0);
+  link_text(30,86,labels[status],15,signal,255,0);
+  snprintf(ip_line,sizeof(ip_line),"IP: %s",address);
+  for(char *p=ip_line;*p;++p)if(*p>='a' && *p<='z')*p-=32;
+  link_text(30,108,ip_line,14,ink,255,0);
+  const char *bottom_feedback=action==1?"RETRYING LINK":action==2?"BUG IT QUEUED":action==3?"CLOSING":action==4?"ARM LINK ON SD":action==5?"NEEDS ARMED LINK":hud_visible?"TOP BADGE ON":"TOP BADGE OFF";
+  link_text_center(118,150,action_frames>0?bottom_feedback:"PC VIEWER SCANS",11,action_frames>0?signal:ink,255,0);
+  link_quad(226,143,74,26,rim,255,0);
+  link_quad(228,145,70,22,card,255,0);
+  link_text_center(263,150,hud_visible?"HUD ON":"HUD OFF",11,cyan,255,0);
+  int flash=(action_frames>0 && (action_frames/5)%2==0);
+  link_quad(18,174,88,48,action==1||action==4?signal:cyan,255,0);
+  link_quad(21,177,82,42,(action==1||action==4)&&flash?signal:0x205b82,255,0);
+  link_quad(116,174,88,48,action==2||action==5?signal:cyan,255,0);
+  link_quad(119,177,82,42,(action==2||action==5)&&flash?signal:0x205b82,255,0);
+  link_quad(214,174,88,48,action==3?signal:rim,255,0);
+  link_quad(217,177,82,42,action==3&&flash?signal:card,255,0);
+  link_text_center(62,191,"A RETRY",13,ink,255,0);
+  link_text_center(160,191,"Y BUGIT",13,ink,255,0);
+  link_text_center(258,191,"B BACK",13,ink,255,0);
+ }
+ n3ds_gpu_hud_screen(0);n3ds_gpu_texture_bind(0,saved);n3ds_gpu_world_state_restore();
+}
+#endif
 #ifdef HALO_N3DS_PC_LOCAL_MENU
 #include "engine_pc_preview.h"
 static void controls_text_center(float width,float y,const char *message,unsigned int color,int top)

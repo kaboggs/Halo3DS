@@ -1,0 +1,22 @@
+{
+  "id": "halo3ds",
+  "name": "Halo3DS Dev",
+  "order": 10,
+  "mark": "H",
+  "transport": "python-v1",
+  "capabilities": ["screenshot", "stream", "audio", "controller", "input", "touch", "report", "log", "perf", "catalog", "preview"],
+  "audioSampleRate": 16364,
+  "display": {
+    "layout": "dual-screen",
+    "width": 400,
+    "height": 480,
+    "touch": {"x": 40, "y": 240, "width": 320, "height": 240, "deviceWidth": 320, "deviceHeight": 240}
+  },
+  "buttons": ["A", "B", "X", "Y", "UP", "DOWN", "LEFT", "RIGHT", "L", "R", "ZL", "ZR"],
+  "setup": {"deviceConfigPath": "halo-source/remote-pilot-upstream-dev.cfg"},
+  "theme": {
+    "background": "#050c19", "surface": "#102347", "surface2": "#09162f",
+    "line": "#3474ab", "text": "#d4f2ff", "muted": "#8db9d5",
+    "accent": "#37a9ff", "accent2": "#8ee6ff", "glow": "#087bd9"
+  }
+}

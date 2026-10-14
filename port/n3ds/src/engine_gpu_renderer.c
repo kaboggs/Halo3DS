@@ -2507,7 +2507,12 @@ static void status_text(const char *const *lines,unsigned int count,int menu)
 
 extern void n3ds_gpu_hud_layout(int);
 #include "engine_controls_draw.inl"
-static void controls_dispose(void){if(controls_white)n3ds_gpu_texture_destroy(controls_white);controls_white=NULL;}
+static void controls_dispose(void){
+ if(controls_white)n3ds_gpu_texture_destroy(controls_white);controls_white=NULL;
+#ifdef HALO_N3DS_REMOTE_PILOT_DEV_MENU
+ if(link_font_texture)n3ds_gpu_texture_destroy(link_font_texture);link_font_texture=NULL;
+#endif
+}
 
 static void loading_text(void)
 {
